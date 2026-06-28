@@ -15,6 +15,8 @@ class AsteriaCalendar(QCalendarWidget):
         self.updateCells()
 
     def paintCell(self, painter: QPainter, rect, date: QDate):
+        if rect.height() <= 0 or rect.width() <= 0: 
+            return
         painter.save()
         if self._is_overflow_row(date):
             painter.fillRect(rect, QColor("#F5F1FA"))  # blend with background

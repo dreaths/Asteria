@@ -1,7 +1,7 @@
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow,
-    QWidget, QHBoxLayout
+    QWidget, QHBoxLayout, QSystemTrayIcon
 )
 from PyQt6.QtGui import QTextCharFormat, QColor
 from PyQt6.QtCore import Qt
@@ -11,7 +11,7 @@ from app.ui.add_event_dialog import AddEventDialog
 from app.ui.asteria_calendar import AsteriaCalendar
 from app.ui.sidebar import Sidebar
 from app.services.scheduler import ReminderScheduler
-
+from app.ui.tray import SystemTray
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -48,6 +48,7 @@ class MainWindow(QMainWindow):
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
+        self.tray = SystemTray(main_window=self, parent=self)
 
         self.refresh()
 
@@ -86,7 +87,35 @@ class MainWindow(QMainWindow):
     def dismiss_all(self):  
         self.repo.dismiss_all_reminders()
         self.refresh_missed()
-
+    def closeEvent(self, event):
+        from PyQt6.QtWidgets import QMessageBox, QPushButton
+        
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Close Asteria")
+        msg.setText("What would you like to do?")
+        
+        minimize_btn = msg.addButton("Minimize to Tray", QMessageBox.ButtonRole.AcceptRole)
+        quit_btn = msg.addButton("Quit", QMessageBox.ButtonRole.DestructiveRole)
+        cancel_btn = msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        
+        msg.exec()
+        
+        clicked = msg.clickedButton()
+        
+        if clicked == minimize_btn:
+            event.ignore()
+            self.hide()
+            self.tray.tray.showMessage(
+                "Asteria",
+                "Running in the background. Double-click the tray icon to reopen.",
+                QSystemTrayIcon.MessageIcon.Information,
+                2000
+            )
+        elif clicked == quit_btn:
+            QApplication.quit()
+        else:  # cancel
+            event.ignore()
+        
 
 def main():
     init_db()

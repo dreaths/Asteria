@@ -144,7 +144,7 @@ class Sidebar(QWidget):
         self._layout.setSpacing(8)
         self._layout.setContentsMargins(12, 12, 12, 12)
         self._layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
+        self.setMinimumWidth(280)  # ← ADD in Sidebar.__init__
         self.date_label = QLabel("Select a date")
         date_font = QFont()
         date_font.setPointSize(12)
