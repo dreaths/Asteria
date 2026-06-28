@@ -1,7 +1,7 @@
 import sqlite3
 from typing import Optional
-from .database import get_connection
-from .models import Event
+from app.data.database import get_connection, DB_PATH
+from app.data.models import Event
 
 class EventRepository:
     def __init__(self, conn: sqlite3.Connection = None, db_path: str = None):

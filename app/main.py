@@ -6,38 +6,54 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QTextCharFormat, QColor
 from PyQt6.QtCore import Qt
 from app.data.database import init_db
+from app.data.event_repository import EventRepository
+from app.ui.add_event_dialog import AddEventDialog
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Asteria")
+        self.repo = EventRepository()
 
-        calendar = QCalendarWidget()
-        calendar.setVerticalHeaderFormat(QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader)
+        self.calendar = QCalendarWidget()
+        self.calendar.setVerticalHeaderFormat(
+            QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader
+        )
 
         weekend_format = QTextCharFormat()
         weekend_format.setForeground(QColor("#B5483D"))
-        calendar.setWeekdayTextFormat(Qt.DayOfWeek.Saturday, weekend_format)
-        calendar.setWeekdayTextFormat(Qt.DayOfWeek.Sunday, weekend_format)
+        self.calendar.setWeekdayTextFormat(Qt.DayOfWeek.Saturday, weekend_format)
+        self.calendar.setWeekdayTextFormat(Qt.DayOfWeek.Sunday, weekend_format)
+
+        self.add_btn = QPushButton("Add Event")
+        self.add_btn.clicked.connect(self.open_add_event)
 
         sidebar = QVBoxLayout()
         sidebar.addWidget(QLabel("Today's Reminders"))
-        sidebar.addWidget(QPushButton("Add Event"))
+        sidebar.addWidget(self.add_btn)
         sidebar.addStretch()
 
         main_layout = QHBoxLayout()
-        main_layout.addWidget(calendar, stretch=3)
+        main_layout.addWidget(self.calendar, stretch=3)
         main_layout.addLayout(sidebar, stretch=1)
 
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
+    def open_add_event(self):
+        selected = self.calendar.selectedDate()
+        dialog = AddEventDialog(parent=self, selected_date=selected)
+        if dialog.exec():
+            event = dialog.get_event()
+            if event:
+                self.repo.add_event(event)
+
 
 def main():
+    init_db()
     app = QApplication(sys.argv)
-
     app.setStyleSheet("""
     QMainWindow {
         background-color: #F5F1FA;
@@ -73,8 +89,6 @@ def main():
     QCalendarWidget QAbstractItemView:disabled {
         color: #B7ABC6;
     }
-
-                      
     QPushButton {
         background-color: #FFFFFF;
         color: #4A4258;
@@ -87,7 +101,6 @@ def main():
         color: #FFFFFF;
     }
 """)
-
     window = MainWindow()
     window.resize(900, 650)
     window.show()
