@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QTextCharFormat, QColor
 from PyQt6.QtCore import Qt
-
+from app.data.database import init_db
 
 
 class MainWindow(QMainWindow):
@@ -14,6 +14,12 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Asteria")
 
         calendar = QCalendarWidget()
+        calendar.setVerticalHeaderFormat(QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader)
+
+        weekend_format = QTextCharFormat()
+        weekend_format.setForeground(QColor("#B5483D"))
+        calendar.setWeekdayTextFormat(Qt.DayOfWeek.Saturday, weekend_format)
+        calendar.setWeekdayTextFormat(Qt.DayOfWeek.Sunday, weekend_format)
 
         sidebar = QVBoxLayout()
         sidebar.addWidget(QLabel("Today's Reminders"))
@@ -24,22 +30,9 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(calendar, stretch=3)
         main_layout.addLayout(sidebar, stretch=1)
 
-        weekend_format = QTextCharFormat()
-        weekend_format.setForeground(QColor("#B5483D"))
-        calendar.setWeekdayTextFormat(Qt.DayOfWeek.Saturday, weekend_format)
-        calendar.setWeekdayTextFormat(Qt.DayOfWeek.Sunday, weekend_format)
-
-        weekday_format = QTextCharFormat()
-        weekday_format.setForeground(QColor("#4A4258"))
-        for day in [Qt.DayOfWeek.Monday, Qt.DayOfWeek.Tuesday, Qt.DayOfWeek.Wednesday,
-                    Qt.DayOfWeek.Thursday, Qt.DayOfWeek.Friday]:
-            calendar.setWeekdayTextFormat(day, weekday_format)
-        
-        
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
-        calendar.setVerticalHeaderFormat(QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader)
 
 
 def main():
