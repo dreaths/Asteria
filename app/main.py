@@ -10,6 +10,7 @@ from app.data.event_repository import EventRepository
 from app.ui.add_event_dialog import AddEventDialog
 from app.ui.asteria_calendar import AsteriaCalendar
 from app.ui.sidebar import Sidebar
+from app.services.scheduler import ReminderScheduler
 
 
 class MainWindow(QMainWindow):
@@ -17,6 +18,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Asteria")
         self.repo = EventRepository()
+        self.scheduler = ReminderScheduler(repo=self.repo, parent=self)
+        self.scheduler.start()
 
         self.calendar = AsteriaCalendar()
         self.calendar.setVerticalHeaderFormat(
