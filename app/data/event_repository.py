@@ -18,9 +18,9 @@ class EventRepository:
     def add_event(self, event: Event) -> int:
         with self._conn() as conn:
             cursor = conn.execute(
-                """INSERT INTO events (title, date, time, notes, remind_mins)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (event.title, event.date, event.time, event.notes, event.remind_mins)
+                """INSERT INTO events (title, date, time, notes, remind_mins, is_priority)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (event.title, event.date, event.time, event.notes, event.remind_mins, int(event.is_priority))
             )
             conn.commit()
             return cursor.lastrowid   # the auto-assigned ID

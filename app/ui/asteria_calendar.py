@@ -93,7 +93,9 @@ class AsteriaCalendar(QCalendarWidget):
                 text_rect = rect.adjusted(6, y - rect.top(), -3, 0)
                 text_rect.setHeight(line_height)
                 if event.is_priority:
-                    painter.setPen(QColor("#C9A800"))
+                    event_font.setBold(True)  
+                    painter.setFont(event_font)
+                    painter.setPen(QColor("#E91E8C"))
                 elif date == selected:
                     painter.setPen(QColor("#FFFFFF"))
                 else:
