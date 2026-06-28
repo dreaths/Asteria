@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QCalendarWidget
 from PyQt6.QtGui import QColor, QPainter, QFont, QBrush
 from PyQt6.QtCore import QDate, Qt, QTimer
-
+from datetime import datetime
 
 class AsteriaCalendar(QCalendarWidget):
     def __init__(self, parent=None):
@@ -89,6 +89,13 @@ class AsteriaCalendar(QCalendarWidget):
 
                 prefix = "★ " if event.is_priority else "" 
                 label = prefix + title 
+                is_missed = False
+                if event.time and not event.notified:
+                    try:
+                        event_dt = datetime.strptime(f"{event.date} {event.time}", "%Y-%m-%d %H:%M")
+                        is_missed = event_dt < datetime.now()
+                    except ValueError:
+                        pass
                 y = y_start + i * line_height
                 text_rect = rect.adjusted(6, y - rect.top(), -3, 0)
                 text_rect.setHeight(line_height)
@@ -102,7 +109,7 @@ class AsteriaCalendar(QCalendarWidget):
                     painter.setPen(QColor("#4A4258"))
                 event_font = QFont()
                 event_font.setPointSize(event_font_size)
-                event_font.setStrikeOut(event.is_done)
+                event_font.setStrikeOut(event.is_done or is_missed)
                 painter.setFont(event_font)
                 painter.drawText(text_rect, Qt.AlignmentFlag.AlignLeft, label)
 
@@ -123,7 +130,7 @@ class AsteriaCalendar(QCalendarWidget):
             if monday.addDays(i).month() == self.monthShown():
                 return False
         return True
-    def _update_margins(self):  # ← NEW
+    def _update_margins(self): 
         # check if first visible row is all overflow
         first_day = QDate(self.yearShown(), self.monthShown(), 1)
         days_from_monday = first_day.dayOfWeek() - 1
@@ -137,7 +144,8 @@ class AsteriaCalendar(QCalendarWidget):
             )
             if all_overflow:
                 # get cell height and apply negative top margin to pull grid up
-                self.setContentsMargins(0, -self._cell_height(), 0, 0)
+                cell_h = self._cell_height()
+                self.setContentsMargins(0, -(cell_h), 0, cell_h)
                 return
         self.setContentsMargins(0, 0, 0, 0)
 

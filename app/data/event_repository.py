@@ -72,7 +72,8 @@ class EventRepository:
             notes=row["notes"],
             remind_mins=row["remind_mins"],
             is_priority=bool(row["is_priority"]),
-            is_done=bool(row["is_done"])
+            is_done=bool(row["is_done"]),
+            notified=bool(row["notified"])
         )
     def get_all_events_by_date(self) -> dict[str, list]:
         """Returns all events grouped by date string."""
@@ -86,7 +87,38 @@ class EventRepository:
             result.setdefault(event.date, []).append(event)
         return result
     
-    def mark_done(self, event_id: int):  # ← NEW
+    def mark_done(self, event_id: int):  
         with self._conn() as conn:
             conn.execute("UPDATE events SET is_done = 1 WHERE id = ?", (event_id,))
             conn.commit()
+    def get_missed_reminders(self) -> list[Event]:  
+        """Events that were never notified and whose time has already passed."""
+        from datetime import datetime
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        rows = self._conn().execute("""
+            SELECT * FROM events
+            WHERE notified = 0
+            AND time IS NOT NULL
+            AND datetime(date || ' ' || time) < ?
+            ORDER BY date DESC, time DESC
+        """, (now_str,)).fetchall()
+        return [self._row_to_event(r) for r in rows]
+
+    def dismiss_reminder(self, event_id: int):  
+        """Mark a missed reminder as notified so it leaves the missed list."""
+        with self._conn() as conn:
+            conn.execute("UPDATE events SET notified = 1 WHERE id = ?", (event_id,))
+            conn.commit()
+
+    def dismiss_all_reminders(self): 
+        """Dismiss all missed reminders at once."""
+        from datetime import datetime
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        with self._conn() as conn:
+            conn.execute("""
+                UPDATE events SET notified = 1
+                WHERE notified = 0
+                AND time IS NOT NULL
+                AND datetime(date || ' ' || time) < ?
+            """, (now_str,))
+        conn.commit()

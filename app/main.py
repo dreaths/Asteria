@@ -36,8 +36,12 @@ class MainWindow(QMainWindow):
         self.sidebar.add_btn.clicked.connect(self.open_add_event)
         self.sidebar.event_deleted.connect(self.delete_event)
         self.calendar.selectionChanged.connect(self.on_date_selected)
+        self.sidebar.reminder_dismissed.connect(self.dismiss_reminder)    
+        self.sidebar.all_reminders_dismissed.connect(self.dismiss_all)    
 
         main_layout = QHBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         main_layout.addWidget(self.calendar, stretch=3)
         main_layout.addWidget(self.sidebar, stretch=1)
 
@@ -51,6 +55,7 @@ class MainWindow(QMainWindow):
         all_events = self.repo.get_all_events_by_date()
         self.calendar.set_events(all_events)
         self.on_date_selected()
+        self.refresh_missed()
 
     def on_date_selected(self):
         date = self.calendar.selectedDate()
@@ -69,6 +74,18 @@ class MainWindow(QMainWindow):
     def delete_event(self, event_id: int):
         self.repo.delete_event(event_id)
         self.refresh()
+
+    def refresh_missed(self): 
+        missed = self.repo.get_missed_reminders()
+        self.sidebar.update_missed_reminders(missed)
+
+    def dismiss_reminder(self, event_id: int):  
+        self.repo.dismiss_reminder(event_id)
+        self.refresh_missed()
+
+    def dismiss_all(self):  
+        self.repo.dismiss_all_reminders()
+        self.refresh_missed()
 
 
 def main():
@@ -97,6 +114,11 @@ def main():
     QCalendarWidget QToolButton:hover {
         background-color: #C9A8E0;
         color: #FFFFFF;
+    }
+    QFrame#MissedCard {
+        background-color: #FFF0EE;
+        border: 1px solid #F2C4BB;
+        border-radius: 8px;
     }
     QCalendarWidget QAbstractItemView:enabled {
         background-color: #F5F1FA;

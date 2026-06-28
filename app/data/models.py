@@ -11,3 +11,4 @@ class Event:
     is_priority: bool = False
     is_done: bool = False
     id: Optional[int] = None        # None until saved to DB, where SQLite will assign it
+    notified: bool = False
