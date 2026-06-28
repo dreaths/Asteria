@@ -19,6 +19,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Asteria")
         self.repo = EventRepository()
         self.scheduler = ReminderScheduler(repo=self.repo, parent=self)
+        self.scheduler.reminders_fired.connect(self.refresh)
         self.scheduler.start()
 
         self.calendar = AsteriaCalendar()
@@ -33,6 +34,7 @@ class MainWindow(QMainWindow):
 
         self.sidebar = Sidebar()
         self.sidebar.add_btn.clicked.connect(self.open_add_event)
+        self.sidebar.event_deleted.connect(self.delete_event)
         self.calendar.selectionChanged.connect(self.on_date_selected)
 
         main_layout = QHBoxLayout()
@@ -64,6 +66,9 @@ class MainWindow(QMainWindow):
             if event:
                 self.repo.add_event(event)
                 self.refresh()
+    def delete_event(self, event_id: int):
+        self.repo.delete_event(event_id)
+        self.refresh()
 
 
 def main():

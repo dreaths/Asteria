@@ -70,16 +70,23 @@ class EventRepository:
             date=row["date"],
             time=row["time"],
             notes=row["notes"],
-            remind_mins=row["remind_mins"]
+            remind_mins=row["remind_mins"],
+            is_priority=bool(row["is_priority"]),
+            is_done=bool(row["is_done"])
         )
     def get_all_events_by_date(self) -> dict[str, list]:
         """Returns all events grouped by date string."""
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT * FROM events ORDER BY date, time"
+                "SELECT * FROM events ORDER BY date, is_priority DESC, time"
             ).fetchall()
         result: dict[str, list] = {}
         for row in rows:
             event = self._row_to_event(row)
             result.setdefault(event.date, []).append(event)
         return result
+    
+    def mark_done(self, event_id: int):  # ← NEW
+        with self._conn() as conn:
+            conn.execute("UPDATE events SET is_done = 1 WHERE id = ?", (event_id,))
+            conn.commit()

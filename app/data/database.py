@@ -16,7 +16,9 @@ def create_schema(conn: sqlite3.connection):
                 date        TEXT NOT NULL,
                 time        TEXT,
                 notes       TEXT,
-                remind_mins         INTEGER,
+                remind_mins         INTEGER DEFAULT 0,
+                is_priority         INTEGER DEFAULT 0,
+                is_done     INTEGER DEFAULT 0,
                 notified        INTEGER DEFAULT 0,
                 created_at      TEXT DEFAULT (datetime('now'))
                       )

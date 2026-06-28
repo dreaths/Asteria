@@ -1,12 +1,17 @@
-from winotify import Notification, audio
+import winsound
+from pathlib import Path
+from plyer import notification
+
+SOUND_PATH = Path(__file__).parent / "notificationSound.wav"
 
 
 def fire_toast(title: str, message: str):
-    toast = Notification(
-        app_id="Asteria",
+    notification.notify(
         title=title,
-        msg=message,
-        duration="short"
+        message=message,
+        app_name="Asteria",
+        timeout=5
     )
-    toast.set_audio(audio.Default, loop=False)
-    toast.show()
+
+    if SOUND_PATH.exists():
+        winsound.PlaySound(str(SOUND_PATH), winsound.SND_FILENAME | winsound.SND_ASYNC)
