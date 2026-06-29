@@ -12,3 +12,5 @@ class Event:
     is_done: bool = False
     id: Optional[int] = None        # None until saved to DB, where SQLite will assign it
     notified: bool = False
+    is_silent: bool = False
+    is_checklist: bool = False

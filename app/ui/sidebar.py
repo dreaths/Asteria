@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton,
-    QFrame, QSizePolicy, QHBoxLayout, QScrollArea  # ← CHANGED — added QScrollArea
+    QFrame, QSizePolicy, QHBoxLayout, QLineEdit, QCheckBox
 )
 from PyQt6.QtCore import Qt, QDate, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -56,7 +56,7 @@ class EventCard(QFrame):
         if event.is_priority and not event.is_done and not is_missed:
             title_label.setText("● " + event.title)
             title_label.setStyleSheet("color: #E91E8C; font-weight: bold;")
-        elif event.is_done:
+        elif event.is_done or is_missed:
             title_label.setStyleSheet("color: #9B89B0;")
         else:
             title_label.setStyleSheet("color: #4A4258;")
@@ -78,7 +78,7 @@ class EventCard(QFrame):
         self.setLayout(layout)
 
 
-class MissedReminderCard(QFrame):  # ← NEW
+class MissedReminderCard(QFrame):
     dismiss_requested = pyqtSignal(int)
 
     def __init__(self, event, parent=None):
@@ -91,13 +91,12 @@ class MissedReminderCard(QFrame):  # ← NEW
         layout.setContentsMargins(10, 6, 10, 6)
 
         top_row = QHBoxLayout()
-
         title_label = QLabel(event.title)
         title_font = QFont()
         title_font.setPointSize(9)
         title_font.setBold(True)
         title_label.setFont(title_font)
-        title_label.setStyleSheet("color: #B5483D;")  # rust color for missed
+        title_label.setStyleSheet("color: #B5483D;")
 
         dismiss_btn = QPushButton("✕")
         dismiss_btn.setFixedSize(20, 20)
@@ -121,30 +120,70 @@ class MissedReminderCard(QFrame):  # ← NEW
         detail_label = QLabel(f"{event.date} at {event.time}")
         detail_label.setStyleSheet("color: #9B89B0; font-size: 8pt;")
         layout.addWidget(detail_label)
-
         self.setLayout(layout)
 
 
 class Sidebar(QWidget):
     event_deleted = pyqtSignal(int)
-    reminder_dismissed = pyqtSignal(int)   # ← NEW
-    all_reminders_dismissed = pyqtSignal() # ← NEW
+    reminder_dismissed = pyqtSignal(int)
+    all_reminders_dismissed = pyqtSignal()
+    task_added = pyqtSignal(str, str)    # ← NEW — date, text
+    task_toggled = pyqtSignal(int, bool) # ← NEW — id, is_done
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setMinimumWidth(280)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        self._current_date = ""  # ← NEW
 
-        outer_layout = QVBoxLayout()  # ← CHANGED — outer layout holds both sections
+        outer_layout = QVBoxLayout()
         outer_layout.setSpacing(0)
         outer_layout.setContentsMargins(0, 0, 0, 0)
 
-        # --- top section: selected date events ---
+        # --- TOP: checklist section ---  # ← NEW
+        checklist_section = QWidget()
+        checklist_layout = QVBoxLayout()
+        checklist_layout.setSpacing(4)
+        checklist_layout.setContentsMargins(12, 12, 12, 8)
+
+        checklist_title = QLabel("Today's Tasks")
+        checklist_title_font = QFont()
+        checklist_title_font.setPointSize(10)
+        checklist_title_font.setBold(True)
+        checklist_title.setFont(checklist_title_font)
+        checklist_title.setStyleSheet("color: #4A4258;")
+        checklist_layout.addWidget(checklist_title)
+
+        self._checklist_layout = QVBoxLayout()
+        self._checklist_layout.setSpacing(2)
+        checklist_layout.addLayout(self._checklist_layout)
+
+        add_row = QHBoxLayout()
+        self._task_input = QLineEdit()
+        self._task_input.setPlaceholderText("Add a task and press Enter...")
+        self._task_input.setFixedHeight(28)
+        self._task_input.returnPressed.connect(self._on_add_task)
+        add_checklist_btn = QPushButton("+")
+        add_checklist_btn.setFixedSize(28, 28)
+        add_checklist_btn.clicked.connect(self._on_add_task)
+        add_row.addWidget(self._task_input, stretch=1)
+        add_row.addWidget(add_checklist_btn)
+        checklist_layout.addLayout(add_row)
+
+        checklist_section.setLayout(checklist_layout)
+        self._checklist_widgets = []
+
+        div1 = QFrame()
+        div1.setFrameShape(QFrame.Shape.HLine)
+        div1.setStyleSheet("color: #E5DCEF;")
+
+        # --- MIDDLE: events section ---
         self._top_widget = QWidget()
         self._layout = QVBoxLayout()
         self._layout.setSpacing(8)
         self._layout.setContentsMargins(12, 12, 12, 12)
         self._layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.setMinimumWidth(280)  # ← ADD in Sidebar.__init__
+
         self.date_label = QLabel("Select a date")
         date_font = QFont()
         date_font.setPointSize(12)
@@ -160,7 +199,11 @@ class Sidebar(QWidget):
         self._top_widget.setLayout(self._layout)
         self._event_widgets = []
 
-        # --- bottom section: missed reminders ---  # ← NEW
+        div2 = QFrame()
+        div2.setFrameShape(QFrame.Shape.HLine)
+        div2.setStyleSheet("color: #E5DCEF;")
+
+        # --- BOTTOM: missed reminders section ---
         self._missed_widget = QWidget()
         missed_layout = QVBoxLayout()
         missed_layout.setSpacing(6)
@@ -207,18 +250,67 @@ class Sidebar(QWidget):
 
         self._missed_widget.setLayout(missed_layout)
         self._missed_cards = []
-
-        # divider line
-        divider = QFrame()  # ← NEW
-        divider.setFrameShape(QFrame.Shape.HLine)
-        divider.setStyleSheet("color: #E5DCEF;")
-
-        outer_layout.addWidget(self._top_widget, stretch=1)
-        outer_layout.addWidget(divider)
-        outer_layout.addWidget(self._missed_widget)
+        self._missed_widget.setStyleSheet("background-color: #FFF8F6;")  
+        checklist_section.setStyleSheet("background-color: #F8F5FF;")
+        # assemble outer layout
+        outer_layout.addWidget(checklist_section)    # top
+        outer_layout.addWidget(div1)
+        outer_layout.addWidget(self._top_widget, stretch=1)  # middle
+        outer_layout.addWidget(div2)
+        outer_layout.addWidget(self._missed_widget)  # bottom
         self.setLayout(outer_layout)
 
+    def _on_add_task(self):  # ← NEW
+        text = self._task_input.text().strip()
+        if text and self._current_date:
+            self.task_added.emit(self._current_date, text)
+            self._task_input.clear()
+
+    def update_checklist(self, items: list):  # ← NEW
+        for w in self._checklist_widgets:
+            self._checklist_layout.removeWidget(w)
+            w.deleteLater()
+        self._checklist_widgets = []
+
+        for item in items:
+            row_widget = QWidget()
+            row_layout = QHBoxLayout()
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(6)
+
+            cb = QCheckBox()
+            cb.setChecked(item.is_done)
+            cb.setStyleSheet("""
+                QCheckBox::indicator:checked {
+                    background-color: #C9A8E0;
+                    border: 2px solid #C9A8E0;
+                    border-radius: 3px;
+                }
+                QCheckBox::indicator:unchecked {
+                    border: 2px solid #C9A8E0;
+                    border-radius: 3px;
+                    background-color: transparent;
+                }
+            """)
+            cb.toggled.connect(lambda checked, eid=item.id: self.task_toggled.emit(eid, checked))
+
+            lbl = QLabel(item.title)
+            lbl_font = QFont()
+            lbl_font.setPointSize(9)
+            lbl_font.setStrikeOut(item.is_done)
+            lbl.setFont(lbl_font)
+            lbl.setStyleSheet("color: #9B89B0;" if item.is_done else "color: #4A4258;")
+            lbl.setWordWrap(True)
+
+            row_layout.addWidget(cb)
+            row_layout.addWidget(lbl, stretch=1)
+            row_widget.setLayout(row_layout)
+
+            self._checklist_layout.addWidget(row_widget)
+            self._checklist_widgets.append(row_widget)
+
     def update_for_date(self, date: QDate, events: list):
+        self._current_date = date.toString("yyyy-MM-dd")  # ← NEW
         now = datetime.now()
         for w in self._event_widgets:
             self._layout.removeWidget(w)
@@ -230,14 +322,15 @@ class Sidebar(QWidget):
         if events:
             for event in events:
                 is_missed = False
-                if event.time and not event.notified: 
-                    event_dt_str = f"{event.date} {event.time}"
+                if event.time and not event.notified:
                     try:
-                        event_dt = datetime.strptime(event_dt_str, "%Y-%m-%d %H:%M")
+                        event_dt = datetime.strptime(
+                            f"{event.date} {event.time}", "%Y-%m-%d %H:%M"
+                        )
                         is_missed = event_dt < now
                     except ValueError:
                         pass
-                card = EventCard(event, is_missed= is_missed)
+                card = EventCard(event, is_missed=is_missed)
                 card.delete_requested.connect(self.event_deleted.emit)
                 self._layout.addWidget(card)
                 self._event_widgets.append(card)
@@ -247,7 +340,7 @@ class Sidebar(QWidget):
             self._layout.addWidget(empty)
             self._event_widgets.append(empty)
 
-    def update_missed_reminders(self, missed: list):  
+    def update_missed_reminders(self, missed: list):
         for w in self._missed_cards:
             self._missed_cards_layout.removeWidget(w)
             w.deleteLater()

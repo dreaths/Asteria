@@ -33,7 +33,9 @@ def create_schema(conn: sqlite3.connection):
                 is_priority         INTEGER DEFAULT 0,
                 is_done     INTEGER DEFAULT 0,
                 notified        INTEGER DEFAULT 0,
-                created_at      TEXT DEFAULT (datetime('now'))
+                created_at      TEXT DEFAULT (datetime('now')),
+                is_silent       INTEGER DEFAULT 0,
+                is_checklist    INTEGER DEFAULT 0
                       )
                 """)
         conn.commit()

@@ -18,9 +18,9 @@ class EventRepository:
     def add_event(self, event: Event) -> int:
         with self._conn() as conn:
             cursor = conn.execute(
-                """INSERT INTO events (title, date, time, notes, remind_mins, is_priority)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (event.title, event.date, event.time, event.notes, event.remind_mins, int(event.is_priority))
+                """INSERT INTO events (title, date, time, notes, remind_mins, is_priority, is_silent, is_checklist)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (event.title, event.date, event.time, event.notes, event.remind_mins, int(event.is_priority), int(event.is_silent), int(event.is_checklist))
             )
             conn.commit()
             return cursor.lastrowid   # the auto-assigned ID
@@ -73,13 +73,22 @@ class EventRepository:
             remind_mins=row["remind_mins"],
             is_priority=bool(row["is_priority"]),
             is_done=bool(row["is_done"]),
-            notified=bool(row["notified"])
+            notified=bool(row["notified"]),
+            is_silent=bool(row["is_silent"]),
+            is_checklist=bool(row["is_checklist"])
         )
+    def toggle_done(self, event_id: int, is_done: bool):  # ← NEW
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE events SET is_done = ? WHERE id = ?",
+                (int(is_done), event_id)
+            )
+            conn.commit()
     def get_all_events_by_date(self) -> dict[str, list]:
         """Returns all events grouped by date string."""
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT * FROM events ORDER BY date, is_priority DESC, time"
+                "SELECT * FROM events ORDER BY date, is_checklist ASC, is_priority DESC, time"
             ).fetchall()
         result: dict[str, list] = {}
         for row in rows:

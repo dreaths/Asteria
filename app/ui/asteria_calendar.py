@@ -1,12 +1,14 @@
 from PyQt6.QtWidgets import QCalendarWidget
-from PyQt6.QtGui import QColor, QPainter, QFont, QBrush
-from PyQt6.QtCore import QDate, Qt, QTimer
+from PyQt6.QtGui import QColor, QPainter, QFont
+from PyQt6.QtCore import QDate, Qt, QTimer, QSize
 from datetime import datetime
+
 
 class AsteriaCalendar(QCalendarWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._events: dict[str, list] = {}
+        self._hide_top_row = False
         self.currentPageChanged.connect(self._update_margins)
         QTimer.singleShot(0, self._update_margins)
 
@@ -14,14 +16,29 @@ class AsteriaCalendar(QCalendarWidget):
         self._events = events
         self.updateCells()
 
+    def sizeHint(self) -> QSize:
+        hint = super().sizeHint()
+        if self._hide_top_row:
+            hint.setHeight(hint.height() - self._cell_height())
+        return hint
+
+    def minimumSizeHint(self) -> QSize:
+        hint = super().minimumSizeHint()
+        if self._hide_top_row:
+            hint.setHeight(hint.height() - self._cell_height())
+        return hint
+
     def paintCell(self, painter: QPainter, rect, date: QDate):
-        if rect.height() <= 0 or rect.width() <= 0: 
+        if rect.height() <= 0 or rect.width() <= 0:
             return
+
         painter.save()
+
         if self._is_overflow_row(date):
-            painter.fillRect(rect, QColor("#F5F1FA"))  # blend with background
+            painter.fillRect(rect, QColor("#F5F1FA"))
             painter.restore()
             return
+
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # --- background ---
@@ -29,11 +46,11 @@ class AsteriaCalendar(QCalendarWidget):
         selected = self.selectedDate()
 
         if date == selected:
-            painter.fillRect(rect, QColor("#C9A8E0"))  # lilac for selected
+            painter.fillRect(rect, QColor("#C9A8E0"))
         elif date == today:
-            painter.fillRect(rect, QColor("#F2E6FF"))  # soft highlight for today
+            painter.fillRect(rect, QColor("#F2E6FF"))
         else:
-            painter.fillRect(rect, QColor("#F5F1FA"))  # default background
+            painter.fillRect(rect, QColor("#F5F1FA"))
 
         # --- cell border ---
         painter.setPen(QColor("#E5DCEF"))
@@ -54,17 +71,16 @@ class AsteriaCalendar(QCalendarWidget):
         date_font.setBold(True)
         painter.setFont(date_font)
 
-        # pick date number color
         if date == selected:
             painter.setPen(QColor("#FFFFFF"))
         elif date.month() != self.monthShown():
-            painter.setPen(QColor("#B7ABC6"))  # grayed out for other months
+            painter.setPen(QColor("#B7ABC6"))
         elif date.dayOfWeek() in (6, 7):
-            painter.setPen(QColor("#B5483D"))  # weekend rust color
+            painter.setPen(QColor("#B5483D"))
         else:
             painter.setPen(QColor("#4A4258"))
 
-        date_rect = rect.adjusted(6, 4, 0, 0)
+        date_rect = rect.adjusted(8, 4, 0, 0)
         painter.drawText(
             date_rect,
             Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft,
@@ -76,43 +92,60 @@ class AsteriaCalendar(QCalendarWidget):
         events = self._events.get(date_str, [])
 
         if events:
+            real_events = [e for e in events if not e.is_checklist]
+            checklist_items = [e for e in events if e.is_checklist and not e.is_done]
+            items_to_show = real_events if real_events else checklist_items
+
             event_font = QFont()
             event_font.setPointSize(event_font_size)
             painter.setFont(event_font)
 
             max_shown = 3
-            shown = events[:max_shown]
-            extra = len(events) - max_shown
+            shown = items_to_show[:max_shown]
+            extra = len(items_to_show) - max_shown
 
             for i, event in enumerate(shown):
                 title = event.title
                 if len(title) > max_chars:
                     title = title[:max_chars] + "…"
 
-                prefix = "★ " if event.is_priority else "" 
-                label = prefix + title 
+                if event.is_checklist:
+                    prefix = "☐ "
+                elif event.is_priority:
+                    prefix = "● "
+                else:
+                    prefix = ""
+                label = prefix + title
+
                 is_missed = False
                 if event.time and not event.notified:
                     try:
-                        event_dt = datetime.strptime(f"{event.date} {event.time}", "%Y-%m-%d %H:%M")
+                        event_dt = datetime.strptime(
+                            f"{event.date} {event.time}", "%Y-%m-%d %H:%M"
+                        )
                         is_missed = event_dt < datetime.now()
                     except ValueError:
                         pass
+
                 y = y_start + i * line_height
                 text_rect = rect.adjusted(6, y - rect.top(), -3, 0)
                 text_rect.setHeight(line_height)
-                if event.is_priority:
-                    event_font.setBold(True)  
-                    painter.setFont(event_font)
+
+                event_font_copy = QFont()
+                event_font_copy.setPointSize(event_font_size)
+                event_font_copy.setStrikeOut(event.is_done or is_missed)
+
+                if event.is_checklist:
+                    painter.setPen(QColor("#9B89B0"))
+                elif event.is_priority and not event.is_done and not is_missed:
+                    event_font_copy.setBold(True)
                     painter.setPen(QColor("#E91E8C"))
                 elif date == selected:
                     painter.setPen(QColor("#FFFFFF"))
                 else:
                     painter.setPen(QColor("#4A4258"))
-                event_font = QFont()
-                event_font.setPointSize(event_font_size)
-                event_font.setStrikeOut(event.is_done or is_missed)
-                painter.setFont(event_font)
+
+                painter.setFont(event_font_copy)
                 painter.drawText(text_rect, Qt.AlignmentFlag.AlignLeft, label)
 
             if extra > 0:
@@ -123,37 +156,20 @@ class AsteriaCalendar(QCalendarWidget):
                 painter.drawText(text_rect, Qt.AlignmentFlag.AlignLeft, f"+{extra} more")
 
         painter.restore()
+
     def _is_overflow_row(self, date: QDate) -> bool:
-        # find Monday of this date's week
         days_from_monday = date.dayOfWeek() - 1
         monday = date.addDays(-days_from_monday)
-        # if the entire week (mon-sun) is outside the shown month, it's an overflow row
         for i in range(7):
             if monday.addDays(i).month() == self.monthShown():
                 return False
         return True
-    def _update_margins(self): 
-        # check if first visible row is all overflow
-        first_day = QDate(self.yearShown(), self.monthShown(), 1)
-        days_from_monday = first_day.dayOfWeek() - 1
-        monday_of_first_row = first_day.addDays(-days_from_monday)
 
-        # if monday of first row is in previous month, check if whole row is overflow
-        if monday_of_first_row.month() != self.monthShown():
-            all_overflow = all(
-                monday_of_first_row.addDays(i).month() != self.monthShown()
-                for i in range(7)
-            )
-            if all_overflow:
-                # get cell height and apply negative top margin to pull grid up
-                cell_h = self._cell_height()
-                self.setContentsMargins(0, -(cell_h), 0, cell_h)
-                return
-        self.setContentsMargins(0, 0, 0, 0)
+    def _update_margins(self):
+        pass
 
     def _cell_height(self) -> int:
-        # estimate cell height from widget height minus header
-        header_height = 30  # approximate navigation bar height
-        row_header_height = 25  # day name row height
+        header_height = 30
+        row_header_height = 25
         available = self.height() - header_height - row_header_height
-        return available // 6  # 6 possible rows
+        return available // 6

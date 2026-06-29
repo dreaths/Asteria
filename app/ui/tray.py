@@ -11,8 +11,7 @@ def get_icon_path() -> Path:
         base = Path(__file__).parent.parent
     return base / "assets" / "asteria.ico"
 ICON_PATH = get_icon_path()
-print(f"Icon path: {ICON_PATH}")
-print(f"Icon exists: {ICON_PATH.exists()}")
+
 
 class SystemTray(QObject):
     def __init__(self, main_window, parent=None):

@@ -26,20 +26,21 @@ class ReminderScheduler(QObject):
         window_str = window_end.strftime("%Y-%m-%d %H:%M")
         due = self.repo.get_due_reminders(now_str, window_str)
         for event in due:
-            if event.remind_mins > 0:
-                # this is the "early warning" toast
-                fire_toast(
-                    title=f"Upcoming: {event.title}",
-                    message=f"Starting in {event.remind_mins} mins at {event.time}",
-                    is_priority=event.is_priority
-                )
-            else:
-                # notify exactly at event time
-                fire_toast(
-                    title=event.title,
-                    message=f"Starting now at {event.time}",
-                    is_priority=event.is_priority
-                )
+            if not event.is_silent:
+                if event.remind_mins > 0:
+                    # this is the "early warning" toast
+                    fire_toast(
+                        title=f"Upcoming: {event.title}",
+                        message=f"Starting in {event.remind_mins} mins at {event.time}",
+                        is_priority=event.is_priority
+                    )
+                else:
+                    # notify exactly at event time
+                    fire_toast(
+                        title=event.title,
+                        message=f"Starting now at {event.time}",
+                        is_priority=event.is_priority
+                    )
             self.repo.mark_notified(event.id)
             self.repo.mark_done(event.id)
         if due:

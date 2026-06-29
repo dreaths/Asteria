@@ -112,6 +112,23 @@ class AddEventDialog(QDialog):
             background-color: transparent;
         }
     """)
+        
+        self.silent_checkbox = QCheckBox("Silent reminder (no sound or banner)")
+        self.silent_checkbox.setChecked(False)
+        self.silent_checkbox.setStyleSheet("""
+            QCheckBox::indicator:checked {
+                background-color: #C9A8E0;
+                border: 2px solid #C9A8E0;
+                border-radius: 3px;
+            }
+            QCheckBox::indicator:unchecked {
+                border: 2px solid #C9A8E0;
+                border-radius: 3px;
+                background-color: transparent;
+            }
+    """)
+        layout.addWidget(self.silent_checkbox)
+
 
         # --- Buttons ---
         buttons = QDialogButtonBox(
@@ -166,5 +183,6 @@ class AddEventDialog(QDialog):
             time=time_str,
             notes=self.notes_input.toPlainText().strip() or None,
             remind_mins=remind_mins,
-            is_priority=self.priority_checkbox.isChecked()
+            is_priority=self.priority_checkbox.isChecked(),
+            is_silent=self.silent_checkbox.isChecked()
         )
