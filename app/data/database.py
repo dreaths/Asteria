@@ -1,7 +1,20 @@
 import sqlite3
 from pathlib import Path
+import sys
+import os
 
-DB_PATH = Path(__file__).parent / "asteria.db"
+def get_db_path() -> Path: 
+    """Returns persistent DB path in AppData for packaged app, local for dev."""
+    if getattr(sys, 'frozen', False):
+
+        app_data = Path(os.environ.get("APPDATA", Path.home())) / "Asteria"
+        app_data.mkdir(exist_ok=True)
+        return app_data / "asteria.db"
+    else:
+    
+        return Path(__file__).parent / "asteria.db"
+
+DB_PATH = get_db_path()  # ← CHANGED
 
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)

@@ -2,9 +2,17 @@ from PyQt6.QtWidgets import QSystemTrayIcon, QMenu, QApplication
 from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtCore import QObject
 from pathlib import Path
+import sys
 
-ICON_PATH = Path(__file__).parent.parent / "assets" / "asteria.ico"
-
+def get_icon_path() -> Path: 
+    if getattr(sys, 'frozen', False):
+        base = Path(sys._MEIPASS)
+    else:
+        base = Path(__file__).parent.parent
+    return base / "assets" / "asteria.ico"
+ICON_PATH = get_icon_path()
+print(f"Icon path: {ICON_PATH}")
+print(f"Icon exists: {ICON_PATH.exists()}")
 
 class SystemTray(QObject):
     def __init__(self, main_window, parent=None):
